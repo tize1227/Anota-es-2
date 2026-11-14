@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minhas anotações</title>
+<style>
+  /* ===== CORES E FONTES (mude aqui) ===== */
+  :root {
+    --bg: #e9eef3;
+    --painel: #f7f9fb;
+    --tinta: #1b2a3a;
+    --suave: #5d6d7e;
+    --linha: #cfd8e1;
+    --accent: #2f6fed;
+    --sobre-accent: #fff;
+    --fonte: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --tam: 18px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-tema="auto"] {
+      --bg: #11171e; --painel: #19212a; --tinta: #e6edf3; --suave: #93a1b0; --linha: #2a3641;
+    }
+  }
+  :root[data-tema="escuro"] {
+    --bg: #11171e; --painel: #19212a; --tinta: #e6edf3; --suave: #93a1b0; --linha: #2a3641;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--tinta);
+    font-family: var(--fonte); font-size: 16px; line-height: 1.5;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .app { display: grid; grid-template-columns: 300px 1fr; height: 100%; }
+
+  /* ===== Coluna da esquerda ===== */
+  .lateral {
+    background: var(--painel); border-right: 1px solid var(--linha);
+    display: flex; flex-direction: column; min-height: 0; padding: 20px 16px;
+  }
+  .lateral h1 { font-size: 1.25rem; margin: 0 0 14px; }
+  .btn {
+    border: 1px solid var(--linha); background: transparent; border-radius: 8px;
+    padding: 9px 14px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primario {
+    background: var(--accent); color: var(--sobre-accent); border-color: var(--accent); font-weight: 600;
+  }
+  .btn.perigo:hover { border-color: #d64545; color: #d64545; }
+
+  #notas { list-style: none; margin: 16px 0; padding: 0; overflow-y: auto; flex: 1; min-height: 80px; }
+  #notas li { margin: 0 0 6px; }
+  .item {
+    width: 100%; text-align: left; border: 1px solid transparent; background: transparent;
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .item:hover { background: var(--bg); }
+  .item.ativa { background: var(--bg); border-color: var(--accent); }
+  .item b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item small { color: var(--suave); }
+  #vazio { color: var(--suave); margin: 16px 0; }
+
+  details { border-top: 1px solid var(--linha); padding-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; }
+  .campo { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; margin-top: 10px; }
+  .campo label { color: var(--suave); font-size: .9rem; }
+  .campo select, .campo input[type="color"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--linha); border-radius: 6px; padding: 4px 8px;
+  }
+  .campo input[type="color"] { height: 34px; padding: 2px; }
+  .campo input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .link { background: none; border: none; color: var(--suave); text-decoration: underline; padding: 12px 0 0; text-align: left; }
+
+  /* ===== Editor ===== */
+  .editor { display: flex; flex-direction: column; min-height: 0; padding: 28px clamp(16px, 5vw, 56px); }
+  #titulo {
+    background: transparent; border: none; border-bottom: 1px solid var(--linha);
+    font-size: 1.7rem; font-weight: 700; padding: 6px 0 12px; margin-bottom: 16px;
+  }
+  #texto {
+    flex: 1; min-height: 240px; resize: none; background: transparent; border: none;
+    font-size: var(--tam); line-height: 1.65; max-width: 70ch; width: 100%;
+  }
+  #titulo:focus-visible, #texto:focus-visible { outline: none; }
+  #titulo:focus { border-bottom-color: var(--accent); }
+  .rodape { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--linha); }
+  #status { flex: 1; color: var(--suave); font-size: .9rem; }
+
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100%; }
+    .lateral { border-right: none; border-bottom: 1px solid var(--linha); }
+    #notas { max-height: 160px; flex: none; }
+    .editor { min-height: 70vh; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="lateral">
+    <h1>Minhas anotações</h1>
+    <button class="btn primario" id="novo">Nova anotação</button>
+    <ul id="notas"></ul>
+    <p id="vazio" hidden>Nenhuma anotação salva ainda.</p>
+
+    <details>
+      <summary>Aparência</summary>
+      <div class="campo">
+        <label for="tema">Tema</label>
+        <select id="tema">
+          <option value="auto">Automático</option>
+          <option value="claro">Claro</option>
+          <option value="escuro">Escuro</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="cor">Cor de destaque</label>
+        <input type="color" id="cor">
+      </div>
+      <div class="campo">
+        <label for="fonte">Fonte</label>
+        <select id="fonte">
+          <option value="sans">Sem serifa</option>
+          <option value="serif">Com serifa</option>
+          <option value="mono">Máquina de escrever</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="tamanho">Tamanho</label>
+        <input type="range" id="tamanho" min="14" max="26" step="1">
+      </div>
+    </details>
+    <button class="link" id="backup">Baixar cópia das anotações</button>
+  </aside>
+
+  <main class="editor">
+    <input id="titulo" type="text" placeholder="Título da anotação" aria-label="Título">
+    <textarea id="texto" placeholder="Escreva sua anotação aqui" aria-label="Texto da anotação"></textarea>
+    <div class="rodape">
+      <span id="status" role="status"></span>
+      <button class="btn perigo" id="apagar">Apagar</button>
+      <button class="btn primario" id="salvar">Salvar</button>
+    </div>
+  </main>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const CHAVE_NOTAS = "anota:notas";
+  const CHAVE_CONFIG = "anota:config";
+  const FONTES = {
+    sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    mono: 'ui-monospace, Consolas, monospace'
+  };
+
+  // Lê e grava no navegador (localStorage), sem quebrar se ele estiver bloqueado
+  function ler(chave, padrao) {
+    try { const v = localStorage.getItem(chave); return v ? JSON.parse(v) : padrao; }
+    catch (e) { return padrao; }
+  }
+  function gravar(chave, valor) {
+    try { localStorage.setItem(chave, JSON.stringify(valor)); return true; }
+    catch (e) { return false; }
+  }
+
+  let notas = ler(CHAVE_NOTAS, []);
+  let config = Object.assign({ tema: "auto", cor: "#2f6fed", fonte: "sans", tamanho: 18 }, ler(CHAVE_CONFIG, {}));
+  let atual = null;   // id da anotação aberta (null = anotação nova)
+  let sujo = false;   // true = há alterações não salvas
+
+  // ----- Aparência -----
+  function corDoTexto(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const brilho = ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+    return brilho > 150 ? "#111" : "#fff";
+  }
+  function aplicarConfig() {
+    const r = document.documentElement;
+    r.dataset.tema = config.tema === "claro" ? "claro" : config.tema;
+    r.style.setProperty("--accent", config.cor);
+    r.style.setProperty("--sobre-accent", corDoTexto(config.cor));
+    r.style.setProperty("--fonte", FONTES[config.fonte] || FONTES.sans);
+    r.style.setProperty("--tam", config.tamanho + "px");
+    $("tema").value = config.tema;
+    $("cor").value = config.cor;
+    $("fonte").value = config.fonte;
+    $("tamanho").value = config.tamanho;
+  }
+  [["tema", "tema"], ["cor", "cor"], ["fonte", "fonte"], ["tamanho", "tamanho"]].forEach(([id, campo]) => {
+    $(id).addEventListener("input", () => {
+      config[campo] = campo === "tamanho" ? Number($(id).value) : $(id).value;
+      aplicarConfig();
+      gravar(CHAVE_CONFIG, config);
+    });
+  });
+
+  // ----- Lista de anotações -----
+  function formatarData(ms) {
+    return new Date(ms).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  }
+  function desenharLista() {
+    const ul = $("notas");
+    ul.textContent = "";
+    $("vazio").hidden = notas.length > 0;
+    [...notas].sort((a, b) => b.data - a.data).forEach(n => {
+      const li = document.createElement("li");
+      const bt = document.createElement("button");
+      bt.className = "item" + (n.id === atual ? " ativa" : "");
+      const t = document.createElement("b");
+      t.textContent = n.titulo;
+      const d = document.createElement("small");
+      d.textContent = formatarData(n.data);
+      bt.append(t, d);
+      bt.addEventListener("click", () => abrir(n.id));
+      li.append(bt);
+      ul.append(li);
+    });
+  }
+
+  function confirmarDescarte() {
+    return !sujo || confirm("Há alterações não salvas. Descartar?");
+  }
+  function abrir(id) {
+    if (!confirmarDescarte()) return;
+    const n = notas.find(x => x.id === id);
+    if (!n) return;
+    atual = id;
+    $("titulo").value = n.titulo;
+    $("texto").value = n.texto;
+    sujo = false;
+    $("status").textContent = "";
+    desenharLista();
+  }
+  function nova() {
+    if (!confirmarDescarte()) return;
+    atual = null;
+    $("titulo").value = "";
+    $("texto").value = "";
+    sujo = false;
+    $("status").textContent = "";
+    desenharLista();
+    $("titulo").focus();
+  }
+
+  // ----- Salvar e apagar -----
+  function salvar() {
+    const titulo = $("titulo").value.trim() || "Sem título";
+    const texto = $("texto").value;
+    if (atual) {
+      const n = notas.find(x => x.id === atual);
+      n.titulo = titulo; n.texto = texto; n.data = Date.now();
+    } else {
+      atual = Date.now().toString(36);
+      notas.push({ id: atual, titulo, texto, data: Date.now() });
+    }
+    if (gravar(CHAVE_NOTAS, notas)) {
+      sujo = false;
+      $("status").textContent = "Salva às " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    } else {
+      $("status").textContent = "Não foi possível salvar neste navegador.";
+    }
+    desenharLista();
+  }
+  function apagar() {
+    if (!atual) { $("titulo").value = ""; $("texto").value = ""; sujo = false; return; }
+    if (!confirm("Apagar esta anotação? Não dá para desfazer.")) return;
+    notas = notas.filter(x => x.id !== atual);
+    gravar(CHAVE_NOTAS, notas);
+    atual = null; sujo = false;
+    $("titulo").value = ""; $("texto").value = "";
+    $("status").textContent = "Anotação apagada.";
+    desenharLista();
+  }
+
+  // ----- Cópia de segurança -----
+  function baixarCopia() {
+    const blob = new Blob([JSON.stringify(notas, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "minhas-anotacoes.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ----- Eventos -----
+  ["titulo", "texto"].forEach(id => $(id).addEventListener("input", () => {
+    sujo = true;
+    $("status").textContent = "Alterações não salvas";
+  }));
+  $("salvar").addEventListener("click", salvar);
+  $("apagar").addEventListener("click", apagar);
+  $("novo").addEventListener("click", nova);
+  $("backup").addEventListener("click", baixarCopia);
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); salvar(); }
+  });
+  window.addEventListener("beforeunload", e => { if (sujo) { e.preventDefault(); e.returnValue = ""; } });
+
+  aplicarConfig();
+  desenharLista();
+</script>
+</body>
+</html>
